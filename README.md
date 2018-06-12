@@ -1,2 +1,2 @@
 # winterbeam.github.io
-A couple of tryhards who were up to no good...
+non-seasonal and unreasonable

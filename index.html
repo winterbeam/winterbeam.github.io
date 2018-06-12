@@ -1,42 +1,22 @@
 <html>
+
 <head>
   <link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="css/modules.css">
+  <link rel="stylesheet" type="text/css" href="css/main.css">
   <title>Winterbeam</title>
-  <style> 
-    * {
-      margin: 0;
-      padding: 0;
-      font-family:'Montserrat',sans-serif;
-    }
-    
-    body {
-      width:100vw;
-      height:100vh;
-      background:#264653;
-      display: flex;
-      align-items:center;
-      justify-content: center;
-      flex-direction:column;
-    }
-    
-  	section {
-	  width:50%;
-  	}
-  
-    h1 {
-      color: #E76F51;
-      font-size:2em;
-    }
-    
-    h6 {
-      color: #2A9D8F;
-    }
-  </style>
 </head>
-<body>
-  <section>
-    <h1>Coming Soon...</h1>
-    <h6>chilly</h6>
-  </section>
+
+<body onresize="resize()">
+  <canvas id='coldwater'> </canvas>
+
+  <div id="conu">
+    <span id='namu'>Winterbeam</span>
+    <div id="subu">
+      <span>non-seasonal and unreasonable</span>
+    </div>
+  </div>
+  <script src="js/coldwater.js"></script>
 </body>
+
 </html>
