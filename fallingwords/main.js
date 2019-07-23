@@ -1,6 +1,8 @@
-var time, fps, framecount;
+var fps;
+var times = [];
 var debugging;
 var animationFrameHandle;
+var hasFocus;
 var canvasElement;
 var bufferElement;
 var ctx;
@@ -21,6 +23,8 @@ function init() {
     ctx = canvasElement.getContext("2d");
     resizeCanvas();
     window.onresize = resizeCanvas;
+    window.onfocus = function () { hasFocus = true; };
+    window.onblur = function () { hasFocus = false; };
     window.onkeydown = updateInput;
 }
 function run() {
@@ -39,8 +43,15 @@ function loadDict() {
 }
 //CYCLE CODE
 function mainloop() {
-    update();
-    render();
+    var now = performance.now();
+    while (times.length > 0 && times[0] <= now - 1000)
+        times.shift();
+    times.push(now);
+    fps = times.length;
+    if (hasFocus)
+        update();
+    if (hasFocus)
+        render();
     animationFrameHandle = requestAnimationFrame(mainloop);
 }
 //UPDATE CODE
@@ -68,7 +79,9 @@ function render() {
     ctx.fillRect(0, 0, width, height);
     words.forEach(renderWord);
     if (debugging) {
-        //TODO: render fps
+        ctx.fillStyle = "white";
+        ctx.font = "24px Consolas";
+        ctx.fillText(fps + "", 0, 20);
     }
 }
 function renderWord(word) {
@@ -88,6 +101,8 @@ function randomWord() {
     return dict[Math.floor(Math.random() * dict.length)];
 }
 function spawnWord() {
+    if (!hasFocus)
+        return;
     var w = {
         str: "",
         x: 0,
@@ -122,7 +137,7 @@ function bufferCheck() {
 function removeWords() {
     if (words.length <= 0)
         return;
-    for (var i = words.length - 1; i > 0; i--) {
+    for (var i = words.length - 1; i >= 0; i--) {
         if (words[i].remove) {
             words.splice(i, 1);
         }
