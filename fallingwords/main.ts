@@ -1,11 +1,20 @@
-var time, fps, framecount: number
-var debugging: boolean
-var animationFrameHandle: number
+var debugging: boolean = false
+var running: boolean
+var fps: number = 0
+var delts: number[] = []
+var hasFocus: boolean
 
 var canvasElement: HTMLCanvasElement
 var bufferElement: HTMLTextAreaElement
 var ctx: CanvasRenderingContext2D
 var width, height: number
+
+var stats;
+
+interface Timer {
+  length: number
+  last: number
+}
 
 interface Rect {
   x: number, y: number, w: number, h: number
@@ -17,14 +26,13 @@ interface Word {
   x: number
   y: number
   remove: boolean
+  fallrate: number
 }
-
 
 var dict: string[] = []
 var words: Word[] = []
 var spawnrate: number = 1000
 var fallrate: number = 2
-
 
 var font: string = "Georgia"
 var bgColor: string = "#284652"
@@ -33,6 +41,7 @@ var wordSize: number = 24
 
 //INIT CODE
 function init() {
+  running = true
   loadDict()
 
   bufferElement = <HTMLTextAreaElement>document.getElementById("buffer")
@@ -40,12 +49,11 @@ function init() {
   ctx = canvasElement.getContext("2d")
   resizeCanvas()
   window.onresize = resizeCanvas
-  window.onkeydown = updateInput
-}
+  window.onfocus = () => {hasFocus = true}
+  window.onblur = () => {hasFocus = false}
+  window.onkeydown = inputListener
 
-function run() {
-  setInterval(spawnWord, spawnrate)
-  animationFrameHandle = requestAnimationFrame(mainloop)
+  bufferClear()
 }
 
 function loadDict() {
@@ -59,32 +67,15 @@ function loadDict() {
     })
 }
 
-
-//CYCLE CODE
-function mainloop() {
-  update()
-  render()
-  animationFrameHandle = requestAnimationFrame(mainloop)
-}
-
 //UPDATE CODE
-function update() {
-  words.forEach(updateWord)
+function update(delta: number) {
+  words.forEach(updateWord, {delta: delta})
   removeWords()
 }
 
 function updateWord(word: Word, index: number, words: Word[]) {
-  //console.log(word)
-  //console.log(words[index])
-  words[index].y += (-word.str.length + 20) / 10
+  words[index].y += word.fallrate * (this.delta / 16)
   if(word.y > height) words[index].remove = true
-}
-
-function updateInput(event: KeyboardEvent) {
-  if (event.key == "Enter" || event.key == " ") {
-    bufferCheck()
-    bufferClear()
-  }
 }
 
 //RENDER CODE
@@ -96,7 +87,9 @@ function render() {
   words.forEach(renderWord)
 
   if (debugging) {
-    //TODO: render fps
+    ctx.fillStyle = "white"
+    ctx.font = "24px Consolas"
+    ctx.fillText(fps+"", 0, 20)
   }
 }
 
@@ -121,17 +114,20 @@ function randomWord(): string {
 }
 
 function spawnWord() {
+  if (!hasFocus) return
   var w: Word = {
     str: "",
     x: 0,
     y: 0,
     index: 0,
-    remove: false
+    remove: false,
+    fallrate: 0
   }
   w.str = randomWord()
   w.x = Math.random() * (width - drawSize(w.str))
   w.y = -10
   w.remove = false
+  w.fallrate = (-w.str.length + 20) * (fallrate/20)
   words.push(w)
 }
 
@@ -157,11 +153,47 @@ function bufferCheck() {
 
 function removeWords() {
   if (words.length <= 0) return
-  for(var i = words.length-1; i > 0; i--) {
+  for(var i = words.length-1; i >= 0; i--) {
     if (words[i].remove) {
       words.splice(i, 1)
     }
   }
+}
+
+function inputListener(event: KeyboardEvent) {
+  if (event.key == "Enter" || event.key == " ") {
+    bufferCheck()
+    bufferClear()
+  }
+}
+
+function run() {
+  var delta: number
+  var last: number
+  var lastFpsTime: number = 0
+  var lastSpawnTime: number = 0
+  function main(timestamp: DOMHighResTimeStamp) {
+    if (running) window.requestAnimationFrame(main)
+    
+    delta = timestamp - last
+    last = timestamp
+    if (!isNaN(delta) && delta != undefined) delts.push(delta)
+    if (delts.length > 10) delts = delts.slice(1)
+    if (timestamp - lastFpsTime > 150) {
+      lastFpsTime = timestamp
+      delts.forEach(d => { fps = (fps + 1000/d) / 2 });
+      fps = Math.round(fps)
+    }
+
+    if (timestamp - lastSpawnTime > spawnrate) {
+      lastSpawnTime = timestamp
+      spawnWord()
+    }
+
+    update(delta)
+    render()
+  }
+  main(0)
 }
 
 init()

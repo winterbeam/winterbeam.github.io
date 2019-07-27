@@ -1,12 +1,13 @@
-var fps;
-var times = [];
-var debugging;
-var animationFrameHandle;
+var debugging = true;
+var running;
+var fps = 0;
+var delts = [];
 var hasFocus;
 var canvasElement;
 var bufferElement;
 var ctx;
 var width, height;
+var stats;
 var dict = [];
 var words = [];
 var spawnrate = 1000;
@@ -17,6 +18,7 @@ var wordColor = "#319C8F";
 var wordSize = 24;
 //INIT CODE
 function init() {
+    running = true;
     loadDict();
     bufferElement = document.getElementById("buffer");
     canvasElement = document.getElementById("canvas");
@@ -25,11 +27,8 @@ function init() {
     window.onresize = resizeCanvas;
     window.onfocus = function () { hasFocus = true; };
     window.onblur = function () { hasFocus = false; };
-    window.onkeydown = updateInput;
-}
-function run() {
-    setInterval(spawnWord, spawnrate);
-    animationFrameHandle = requestAnimationFrame(mainloop);
+    window.onkeydown = inputListener;
+    bufferClear();
 }
 function loadDict() {
     //TODO: support for user dicts
@@ -41,36 +40,15 @@ function loadDict() {
         run();
     });
 }
-//CYCLE CODE
-function mainloop() {
-    var now = performance.now();
-    while (times.length > 0 && times[0] <= now - 1000)
-        times.shift();
-    times.push(now);
-    fps = times.length;
-    if (hasFocus)
-        update();
-    if (hasFocus)
-        render();
-    animationFrameHandle = requestAnimationFrame(mainloop);
-}
 //UPDATE CODE
-function update() {
-    words.forEach(updateWord);
+function update(delta) {
+    words.forEach(updateWord, { delta: delta });
     removeWords();
 }
 function updateWord(word, index, words) {
-    //console.log(word)
-    //console.log(words[index])
-    words[index].y += (-word.str.length + 20) / 10;
+    words[index].y += word.fallrate * (this.delta / 16);
     if (word.y > height)
         words[index].remove = true;
-}
-function updateInput(event) {
-    if (event.key == "Enter" || event.key == " ") {
-        bufferCheck();
-        bufferClear();
-    }
 }
 //RENDER CODE
 function render() {
@@ -108,12 +86,14 @@ function spawnWord() {
         x: 0,
         y: 0,
         index: 0,
-        remove: false
+        remove: false,
+        fallrate: 0
     };
     w.str = randomWord();
     w.x = Math.random() * (width - drawSize(w.str));
     w.y = -10;
     w.remove = false;
+    w.fallrate = (-w.str.length + 20) * (fallrate / 20);
     words.push(w);
 }
 function drawSize(word) {
@@ -142,5 +122,39 @@ function removeWords() {
             words.splice(i, 1);
         }
     }
+}
+function inputListener(event) {
+    if (event.key == "Enter" || event.key == " ") {
+        bufferCheck();
+        bufferClear();
+    }
+}
+function run() {
+    var delta;
+    var last;
+    var lastFpsTime = 0;
+    var lastSpawnTime = 0;
+    function main(timestamp) {
+        if (running)
+            window.requestAnimationFrame(main);
+        delta = timestamp - last;
+        last = timestamp;
+        if (!isNaN(delta) && delta != undefined)
+            delts.push(delta);
+        if (delts.length > 10)
+            delts = delts.slice(1);
+        if (timestamp - lastFpsTime > 150) {
+            lastFpsTime = timestamp;
+            delts.forEach(function (d) { fps = (fps + 1000 / d) / 2; });
+            fps = Math.round(fps);
+        }
+        if (timestamp - lastSpawnTime > spawnrate) {
+            lastSpawnTime = timestamp;
+            spawnWord();
+        }
+        update(delta);
+        render();
+    }
+    main(0);
 }
 init();
